@@ -1,3 +1,9 @@
+Kobo_CFW_Ver0.96β2
+
+　①png2raw を正常動作版に差し替え
+　②50poweroffdisplay のコメントアウトを有効化
+
+Kobo_CFW_Ver0.96β1
 
   とりあえずのβ。0.95Plusと比較すると以下の機能が動作しないため現在削除中。
 
