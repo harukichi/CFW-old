@@ -29,6 +29,10 @@ fi
 PARAMS="vendor=$VENDOR_ID product=$PRODUCT_ID vendor_id=Kobo product_id=eReader-$VERSION SN=$SN"
 
 if [ "$ACTION" == "add" ]; then
+	/opt/cfw/scripts/ChangeJournalMode.sh OFF
+	/mnt/onboard/ext/mount_usb.sh
+	wait
+
 	sync
 	umount -l /mnt/onboard
 	umount -l /mnt/sd
@@ -58,18 +62,27 @@ elif [ "$ACTION" == "remove" ]; then
 
 	if [ -e /drivers/$PLATFORM ]; then
 		PARTITION=/dev/mmcblk0p3
-		MOUNTARGS="noatime,nodiratime,shortname=mixed,utf8"
+		MOUNTARGS="noatime,nodiratime,iocharset=utf8"
 	fi
 
 	dosfsck -a -w $PARTITION
 	mount -o $MOUNTARGS -t vfat $PARTITION /mnt/onboard
 
 	if [ -e $DEV ]; then
-		mount -r -t vfat -o $MOUNTARGS $DEV /mnt/sd
+		mount -r -t vfat -o iocharset=utf8,shortname=mixed $DEV /mnt/sd
 #		if [ $? != 0 ]; then
 #			mount -r $DEV /mnt/sd
 #		fi
 	fi
+
+	/opt/cfw/scripts/ReplaceFile.sh
+	/opt/cfw/scripts/ChangeJournalMode.sh ON
+
+	rm -rf /etc/images/boot/boot.mng
+	cp /mnt/onboard/.images/boot.mng /etc/images/boot
+
+	rm -rf /opt/cfw/themes.conf
+	cp mnt/onboard/.images/themes.conf /opt/cfw/
 
 	sleep 1
 
@@ -90,7 +103,14 @@ elif [ "$ACTION" == "remove" ]; then
 			rm -rf /mnt/onboard/.kobo/upgrade
 		fi
 		killall update-animator.sh
-		zcat /etc/images/$PREFIX\reboot.raw.gz | /usr/local/Kobo/pickel showpic 1
+		zcat /etc/images/$PREFIX\ghostbuster.raw.gz | /usr/local/Kobo/pickel showpic
+
+		if [ -f /mnt/onboard/.images/rebooting.png ]; then
+			/opt/cfw/bin/png2raw -K -ta /mnt/onboard/.images/rebooting.png
+		else
+			zcat /etc/images/$PREFIX\reboot.raw.gz | /usr/local/Kobo/pickel showpic
+		fi
+
 		sync
 		sleep 1;
 		reboot
@@ -120,9 +140,15 @@ elif [ "$ACTION" == "remove" ]; then
 		export WIFI_MODULE
 		export WIFI_MODULE_PATH=/drivers/$PLATFORM/wifi/$WIFI_MODULE.ko
 
-		/usr/local/Kobo/nickel -qws -skipFontLoad &
+		/usr/local/Kobo/nickel -qws &
 
 		killall update-animator.sh
 		rmmod $WIFI_MODULE;
+	fi
+
+	source /opt/cfw/scripts/common.sh
+
+	if [ -f ${CONFIG_FILE} ]; then
+		/mnt/onboard/ext/umount_usb.sh
 	fi
 fi
